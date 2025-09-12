@@ -37,11 +37,16 @@ app.state.limiter = limiter
 
 security = HTTPBearer()
 # Add new user chat
-def create_chat(user_id, chat_id, first_message):
+def create_chat(user_id, chat_id, first_message, file_name=None):
     chat_ref = db.collection("users").document(user_id).collection("chats").document(str(chat_id))
     chat_ref.set({
+        "fileName": file_name,
+        "createdAt": datetime.utcnow(),
+        "lastMessage": first_message,
+        "messageCount": 1,
         "messages": [{"type": "human", "text": first_message}]
     })
+
 
 # Query chat messages
 def get_chat(user_id, chat_id):
@@ -54,15 +59,25 @@ def append_message(user_id, chat_id, message):
     chat_ref = db.collection("users").document(user_id).collection("chats").document(str(chat_id))
     doc = chat_ref.get()
     if doc.exists:
-        messages = doc.to_dict().get("messages", [])
+        data = doc.to_dict()
+        messages = data.get("messages", [])
         messages.append(message)
-        chat_ref.update({"messages": messages})
+        chat_ref.update({
+            "messages": messages,
+            "lastMessage": message["text"],
+            "messageCount": len(messages)
+        })
     else:
-        chat_ref.set({"messages": [message]})
+        chat_ref.set({
+            "messages": [message],
+            "lastMessage": message["text"],
+            "messageCount": 1,
+            "createdAt": datetime.utcnow()
+        })
+
 #create_chat("jsadbfk","sdjfbsjkd","Wabalabadubdub")
 #append_message("jsadbfk","sdjfbsjkd",{"type": "ai", "text": "Hello from AI"})
 #print(get_chat("jsadbfk","sdjfbsjkd"))
-
 # Auth dependency
 async def verify_token(request: Request, token: str = Depends(security)):
     try:
@@ -88,7 +103,12 @@ async def new_chat(file: UploadFile, request: Request, user=Depends(verify_token
             f.write(contents)
         chat_id= request.state.user['uid']+"_"+datetime.now().strftime("%Y%m%d-%H%M%S")
         chatbot = RAGChatbot(f"uploads/{file.filename}",chat_id)
-        create_chat(request.state.user['uid'], chat_id,"Hi")
+        create_chat(
+            request.state.user['uid'],
+            chat_id,
+            "Hi",
+            file.filename
+        )
         append_message(request.state.user['uid'], chat_id, {"type": "ai", "text": "Hello! How can I assist you today?"})
         return {"msg": f"File '{file.filename}' uploaded and chatbot initialized.","chat_id":chat_id}
     except RateLimitExceeded as e:
@@ -134,15 +154,25 @@ async def chat(request: Request, user=Depends(verify_token), chat_id: str = "", 
             detail=str(e),
         )
 
-@app.post("/get_chat_ids")
-@limiter.limit("20/minute")   # rate limiting (20 requests per minute)
-async def chat_get(request: Request, user=Depends(verify_token)):
+@app.post("/get_conversations")
+@limiter.limit("20/minute")
+async def get_conversations(request: Request, user=Depends(verify_token)):
     try:
         chats_ref = db.collection("users").document(request.state.user['uid']).collection("chats")
         docs = chats_ref.stream()
-        chat_ids = [doc.id for doc in docs]
-        return {"chat_ids": chat_ids}
-    except RateLimitExceeded as e:
+
+        conversations = []
+        for doc in docs:
+            data = doc.to_dict()
+            conversations.append({
+                "id": doc.id,
+                "fileName": data.get("fileName"),
+                "lastMessage": data.get("lastMessage"),
+                "timestamp": data.get("createdAt"),
+                "messageCount": data.get("messageCount", 0)
+            })
+        return {"conversations": conversations}
+    except RateLimitExceeded:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Rate limit exceeded. Try again later.",
@@ -152,6 +182,7 @@ async def chat_get(request: Request, user=Depends(verify_token)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e),
         )
+
     
 @app.post("/get_chat_by_id")
 @limiter.limit("20/minute")   # rate limiting (20 requests per minute)
