@@ -149,27 +149,26 @@ class RAGChatbot:
         return "Sorry, something went wrong and I couldn't generate a response."
 
 
-#if __name__ == "__main__":
-#    print("Starting RAG Chatbot. Initialization may take a moment...")
-#    try:
-#        rag_chatbot = RAGChatbot("../example_data/log_doc.pdf","kansdjdsjdkjbcxc")
-#        print("\nChatbot is ready. Ask a question about the document.")
-#        print("Type 'exit' to quit.")
-#
-#        while True:
-#            query = input("\nEnter your question: ")
-#            if query.lower() == 'exit':
-#                break
-#            if not query.strip():
-#                continue
-#            load_chat_hisory = [HumanMessage(content='how many distribution center does nike have in us'), AIMessage(content='Nike has eight significant distribution centers in the United States.'), HumanMessage(content='more details about it'), AIMessage(content="I'm sorry, but I don't have access to more detailed information about Nike's distribution center locations, their capacities, or specific operational details.  That kind of data is usually considered proprietary and confidential business information."), HumanMessage(content='like where are they located in us'), AIMessage(content='Five are located in or near Memphis, Tennessee.  Two others are located in Indianapolis, Indiana and Dayton, Tennessee.  These latter two are operated by third-party logistics providers')]
-#            lch = [HumanMessage("Hi"),AIMessage("Hello! How can I assist you today?")]
-#            response = rag_chatbot.invoke(query,lch)
-#            print("\nAnswer:", response)
-#
-#    except FileNotFoundError as e:
-#        print(f"\nERROR: {e}")
-#        print("Please make sure the PDF file is in the correct location and try again.")
-#    except Exception as e:
-#        print(f"\nAn unexpected error occurred: {e}")
+if __name__ == "__main__":
+    print("Starting RAG Chatbot. Initialization may take a moment...")
+    try:
+        rag_chatbot = RAGChatbot("../example_data/log_doc.pdf","kansdjdsjdkjbcxc")
+        print("\nChatbot is ready. Ask a question about the document.")
+        print("Type 'exit' to quit.")
 
+        while True:
+            query = input("\nEnter your question: ")
+            if query.lower() == 'exit':
+                break
+            if not query.strip():
+                continue
+            load_chat_hisory = [HumanMessage(content='how many distribution center does nike have in us'), AIMessage(content='Nike has eight significant distribution centers in the United States.'), HumanMessage(content='more details about it'), AIMessage(content="I'm sorry, but I don't have access to more detailed information about Nike's distribution center locations, their capacities, or specific operational details.  That kind of data is usually considered proprietary and confidential business information."), HumanMessage(content='like where are they located in us'), AIMessage(content='Five are located in or near Memphis, Tennessee.  Two others are located in Indianapolis, Indiana and Dayton, Tennessee.  These latter two are operated by third-party logistics providers')]
+            lch = [HumanMessage("Hi"),AIMessage("Hello! How can I assist you today?")]
+            response = rag_chatbot.invoke(query,lch)
+            print("\nAnswer:", response)
+
+    except FileNotFoundError as e:
+        print(f"\nERROR: {e}")
+        print("Please make sure the PDF file is in the correct location and try again.")
+    except Exception as e:
+        print(f"\nAn unexpected error occurred: {e}")

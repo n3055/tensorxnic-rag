@@ -42,7 +42,9 @@ export default function SidebarLeft(){
                 setConversations(allConversations);
             });
             
-            return () => unsubscribe();
+            return () => {
+    if (typeof unsubscribe === 'function') unsubscribe();
+  };
         }
     }, [currentUser]);
 

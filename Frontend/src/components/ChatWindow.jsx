@@ -45,33 +45,36 @@ export default function ChatWindow() {
     }, []);
 
     const handleSendMessage = async (e) => {
-        e.preventDefault();
-        
-        if (!inputMessage.trim() || isLoading) return;
+  e.preventDefault();
 
-        const userMessage = inputMessage.trim();
-        setInputMessage('');
-        setIsLoading(true);
+  if (!inputMessage.trim() || isLoading) return;
 
-        try {
-            // Send message to backend
-            const result = await sendMessageToBackend(userMessage);
-            
-            if (result.success) {
-                // Save both user message and AI response to Firestore
-                await saveChatMessage(userMessage, result.answer);
-            } else {
-                throw new Error(result.error);
-            }
-        } catch (error) {
-            console.error('Error sending message:', error);
-            setInputMessage(userMessage);
-            // Show error to user
-            alert('Error: ' + error.message);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+  const userMessage = inputMessage.trim();
+  setInputMessage('');
+  setIsLoading(true);
+
+  try {
+    // Optimistically add the user message to UI
+    setMessages(prev => [...prev, { type: 'human', text: userMessage }]);
+
+    // Call backend
+    const result = await sendMessageToBackend(userMessage);
+
+    if (result.success) {
+      // Append AI response to UI
+      setMessages(prev => [...prev, { type: 'ai', text: result.answer }]);
+      // Optionally persist to Firestore
+      // await saveChatMessage(userMessage, result.answer);
+    } else {
+      throw new Error(result.error);
+    }
+  } catch (error) {
+    console.error('Error sending message:', error);
+    alert('Error: ' + error.message);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
     return (
         <div className="h-full flex flex-col bg-[#0f0f0f]">
@@ -86,34 +89,35 @@ export default function ChatWindow() {
                         <p>Upload a PDF file to start a conversation!</p>
                     </div>
                 ) : (
-                    <div className="space-y-4">
-                        {messages.map((msg) => (
-                            <div key={msg.id} className="space-y-2">
-                                <div className="flex justify-end">
-                                    <div className="bg-[#4C82FB] text-white p-3 rounded-lg max-w-[70%]">
-                                        <p className="text-sm">{msg.message}</p>
-                                    </div>
-                                </div>
-                                
-                                <div className="flex justify-start">
-                                    <div className="bg-[#1c1c1c] text-white p-3 rounded-lg max-w-[70%]">
-                                        <p className="text-sm">{msg.response}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                        
-                        {isLoading && (
-                            <div className="flex justify-start">
-                                <div className="bg-[#1c1c1c] text-white p-3 rounded-lg max-w-[70%]">
-                                    <p className="text-sm">AI is thinking...</p>
-                                </div>
-                            </div>
-                        )}
-                        
-                        <div ref={messagesEndRef} />
+            <div className="space-y-4">
+              {messages.map((msg, index) => (
+                msg.type === 'human' ? (
+                  <div key={index} className="flex justify-end">
+                    <div className="bg-[#4C82FB] text-white p-3 rounded-lg max-w-[70%]">
+                      <p className="text-sm">{msg.text}</p>
                     </div>
-                )}
+                  </div>
+                ) : (
+                  <div key={index} className="flex justify-start">
+                    <div className="bg-[#1c1c1c] text-white p-3 rounded-lg max-w-[70%]">
+                      <p className="text-sm">{msg.text}</p>
+                    </div>
+                  </div>
+                )
+              ))}
+
+              {isLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-[#1c1c1c] text-white p-3 rounded-lg max-w-[70%]">
+                    <p className="text-sm">AI is thinking...</p>
+                  </div>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+                            )}
             </div>
 
             <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-800">

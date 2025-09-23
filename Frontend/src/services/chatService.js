@@ -19,16 +19,16 @@ export const createNewChat = async (file) => {
         currentChatId = response.chat_id;
         
         // Also save to Firestore for UI purposes
-        const user = auth.currentUser;
-        if (user) {
-            await addDoc(collection(firestore, 'chatSessions'), {
-                userId: user.uid,
-                chatId: currentChatId,
-                fileName: file.name,
-                createdAt: serverTimestamp(),
-                lastMessage: 'File uploaded successfully'
-            });
-        }
+        //const user = auth.currentUser;
+        //if (user) {
+        //    await addDoc(collection(firestore, 'chatSessions'), {
+        //        userId: user.uid,
+        //        chatId: currentChatId,
+        //        fileName: file.name,
+        //        createdAt: serverTimestamp(),
+        //        lastMessage: 'File uploaded successfully'
+        //    });
+        //}
         
         return { success: true, chatId: currentChatId, message: response.msg };
     } catch (error) {
@@ -49,18 +49,42 @@ export const setCurrentChatId = (chatId) => {
 
 // Send message to backend
 export const sendMessageToBackend = async (message) => {
-    try {
-        if (!currentChatId) {
-            throw new Error('No active chat session. Please upload a file first.');
-        }
-
-        const response = await backendApi.sendMessage(currentChatId, message);
-        return { success: true, answer: response.answer };
-    } catch (error) {
-        console.error('Error sending message:', error);
-        return { success: false, error: error.message };
+  try {
+    if (!currentChatId) {
+      throw new Error('No active chat session. Please upload a file first.');
     }
+    console.log(message);
+    console.log(currentChatId);
+    const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+
+    const response = await fetch(`${API_URL}/chat?chat_id=${currentChatId}&question=${encodeURIComponent(message)}`, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${await auth.currentUser.getIdToken()}`
+  }
+});
+
+
+    if (!response.ok) {
+      // Try to parse JSON error message, but fallback if empty
+      let errMsg = 'Failed to send message';
+      try {
+        const errData = await response.json();
+        errMsg = errData.detail || errMsg;
+      } catch {}
+      throw new Error(errMsg);
+    }
+
+    const data = await response.json();
+    return { success: true, answer: data.answer };
+
+  } catch (error) {
+    console.error('Error sending message:', error);
+    return { success: false, error: error.message };
+  }
 };
+
+
 
 // Save chat message to Firestore for UI
 export const saveChatMessage = async (message, response) => {
@@ -119,60 +143,64 @@ export const getCurrentChatHistory = (callback) => {
 };
 
 // Get all chat sessions from Firestore
-export const getAllConversations = (callback) => {
-    try {
-        const user = auth.currentUser;
-        if (!user) throw new Error('User not authenticated');
+// assuming your backend is running at some BASE_URL
+const BASE_URL = 'http://127.0.0.1:8000';
+export const getAllConversations = async (callback) => {
+  const user = auth.currentUser;
+  if (!user) throw new Error('User not authenticated');
 
-        const q = query(
-            collection(firestore, 'chatSessions'),
-            where('userId', '==', user.uid),
-            orderBy('createdAt', 'desc')
-        );
+  const token = await user.getIdToken();
 
-        return onSnapshot(q, (snapshot) => {
-            const conversations = snapshot.docs.map(doc => ({
-                id: doc.data().chatId,
-                fileName: doc.data().fileName,
-                lastMessage: doc.data().lastMessage,
-                timestamp: doc.data().createdAt,
-                messageCount: 1 // You can calculate this separately if needed
-            }));
-            callback(conversations);
-        });
-    } catch (error) {
-        console.error('Error getting all conversations:', error);
-        throw error;
+  const res = await fetch(`${BASE_URL}/get_conversations`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`
     }
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || 'Failed to fetch conversations');
+  }
+
+  const data = await res.json();
+  callback(data.conversations);
+  return () => {};
 };
 
-// Load specific conversation
-export const loadConversation = (chatId, callback) => {
-    try {
-        const user = auth.currentUser;
-        if (!user) throw new Error('User not authenticated');
 
-        currentChatId = chatId;
 
-        const q = query(
-            collection(firestore, 'chatMessages'),
-            where('userId', '==', user.uid),
-            where('chatId', '==', chatId),
-            orderBy('timestamp', 'asc')
-        );
+export const loadConversation = async (chatId, callback) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('User not authenticated');
 
-        return onSnapshot(q, (snapshot) => {
-            const messages = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            callback(messages);
-        });
-    } catch (error) {
-        console.error('Error loading conversation:', error);
-        throw error;
+    currentChatId = chatId;
+
+    // get Firebase ID token for Authorization header
+    const token = await user.getIdToken();
+
+    const res = await fetch(`${BASE_URL}/get_chat_by_id?chat_id=${chatId}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Failed to load conversation');
     }
+
+    const data = await res.json();
+    // data.messages is your [{type:'human',text:'…'}, {type:'ai',text:'…'}] list
+    callback(data.messages);
+  } catch (error) {
+    console.error('Error loading conversation:', error);
+    throw error;
+  }
 };
+
 
 // Create new conversation (for UI purposes)
 export const createNewConversation = () => {

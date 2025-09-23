@@ -4,13 +4,14 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
-};
+    apiKey: "AIzaSyCWsuymXvSuXlrn1HLXVkjr-Ps_45S6C6k",
+    authDomain: "ragflow-909e7.firebaseapp.com",
+    projectId: "ragflow-909e7",
+    storageBucket: "ragflow-909e7.firebasestorage.app",
+    messagingSenderId: "651569300020",
+    appId: "1:651569300020:web:a9f80bc75833c6c5cb0061",
+    measurementId: "G-C08BWQJWDY"
+  };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
